@@ -117,4 +117,4 @@ Always `sudo nginx -t`, then `sudo systemctl reload nginx`.
 
 - **v0** (S1.3, 9 Oct 2026): a single title and two lines, created on `navmarket-srv01` in lab S1.3. Kept in `docs/session-01/S1.3-storefront-v0.html`.
 - **v1.0.0** (23 Oct 2026): full storefront (catalogue, cart, dark mode, 404, health check).
-- **v1.1.0** (16 Nov 2026): renamed **Kilimark**, live at https://kilimark.com with Let's Encrypt HTTPS (lab S4.6). Logo letter N → K.
+- **Kilimark 1.0.0** (16 Nov 2026): first version under the **Kilimark** name, live at https://kilimark.com with Let's Encrypt HTTPS (lab S4.6). Logo letter N → K.
