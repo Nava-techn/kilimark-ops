@@ -15,6 +15,9 @@ Tested on 10 Nov in a sandbox (sample data, local web servers). The proofs below
 
 ## S5.1 Idempotent deploy: `deploy-storefront.sh`
 
+> **Goal:** Deploy the storefront with one command that can safely be run again.  
+> **What changes:** Before, manual copy commands; after, versioned releases, an atomic switch, and an automatic rollback if the health check fails.
+
 **Idempotent** = running it twice gives the same result as once. The second run says *"Already live, nothing to do"*. That is what makes automation safe to re-run (CI, Ansible in session 6).
 
 How it works:
@@ -36,6 +39,9 @@ scripts/session-05/s5.1-deploy-storefront.sh -r <srv01 root> srv01
 
 ## S5.2 Health check: `healthcheck.sh`
 
+> **Goal:** Check the site's health with a script that returns an exit code.  
+> **What changes:** Before, I checked by eye; after, cron or a CI pipeline knows automatically whether the site is OK, slow or down.
+
 Per URL: HTTP `200`, `"status": "ok"` in `health.json`, response time, days left on the HTTPS certificate.
 
 | Exit code | Meaning | Used by |
@@ -52,6 +58,9 @@ Sandbox test: `OK ... HTTP 200 in 3 ms` / `CRITICAL ... HTTP 404` → exit `2`; 
 
 ## S5.3 Inventory in Python: `inventory.py`
 
+> **Goal:** Manage the Navatech product inventory in Python, from a CSV file.  
+> **What changes:** Before, raw data; after, a report per category, the products to reorder, and a JSON export.
+
 Reads `scripts/session-05/s5.3-inventory.csv` (the 12 storefront products + stock), **checks every row** (bad numbers, duplicates: skipped and listed, exit `1`).
 
 ```bash
@@ -65,6 +74,9 @@ Sandbox output: 12 products, 589 units, **23,146 €** of stock; to reorder: Gli
 Python used: `argparse` sub-commands, `csv.DictReader`, `dataclass`, type hints, `json`, exit codes.
 
 ## S5.4 Log analysis: `log_report.py`
+
+> **Goal:** Analyse the Nginx logs in Python and export the results as JSON.  
+> **What changes:** Before, a Bash report to read by eye; after, structured data that another tool can use.
 
 The Python version of `nginx-report.sh` (S2.5): `.log` and `.gz`, oldest first, regex on the "combined" format.
 JSON: period, requests, status codes, error rate, top IPs, top paths, requests per hour, **suspicious paths** (`wp-`, `.php`, `.env`, `.git`...). `--mask` hides the end of IPs before anything goes to Git.

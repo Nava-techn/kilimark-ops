@@ -54,7 +54,7 @@ location /lb/ {
     add_header X-Backend $upstream_addr always;    # shows which backend answered (lab only)
 }
 NGX
-nginx -t 2>&1 | tail -1 && systemctl reload nginx
+nginx -t && systemctl reload nginx   # not "nginx -t | tail": in a pipe, $? is the last command's (S4.5 lesson)
 sleep 1
 C="curl -s --resolve www.navmarket.lan:443:127.0.0.1 --cacert /etc/ssl/navmarket/navmarket.crt"
 # the server cert is not a CA: trust the system store if the lab CA was installed, else skip checks

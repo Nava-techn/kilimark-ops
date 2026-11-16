@@ -1,0 +1,51 @@
+# S4.5 proofs - 2026-11-14 09:49:48
+
+## 1. Both backends up: they share the requests
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web2", "status": "ok"}
+  HTTP 200
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web2", "status": "ok"}
+  HTTP 200
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web2", "status": "ok"}
+  HTTP 200
+
+## 2. web2 stopped: visitors still get 200, from web1
+inactive
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+
+## 3. What Nginx saw: web2 refused, request retried on web1
+[error] 2606#2606: *316 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: www.navmarket.lan, request: "GET /lb/health.js
+
+## 4. web2 back: after fail_timeout (10 s) it gets traffic again
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web2", "status": "ok"}
+  HTTP 200
+{"backend": "web2", "status": "ok"}
+  HTTP 200
+{"backend": "web1", "status": "ok"}
+  HTTP 200
+{"backend": "web2", "status": "ok"}
+  HTTP 200
+
+## 5. The backends are only reachable through the proxy
+LISTEN 0      5                             127.0.0.1:8081      0.0.0.0:*   
+LISTEN 0      5                             127.0.0.1:8082      0.0.0.0:*   

@@ -1,5 +1,5 @@
 /*
- * NavMarket storefront: catalogue, filters and cart.
+ * Kilimark storefront (formerly NavMarket): catalogue, filters and cart.
  * Plain JavaScript, no framework, no build step, no network calls.
  * The cart is kept in this browser only (localStorage). Nothing is sent anywhere.
  */

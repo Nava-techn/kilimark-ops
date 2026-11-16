@@ -1,4 +1,4 @@
-# NavMarket storefront
+# Kilimark storefront
 
 The public shop front of **NavMarket**, a fictional company. Static website: HTML, CSS and plain JavaScript, no framework, no build step, no external dependency. It is served by **Nginx** from `/srv/navmarket`.
 
@@ -8,7 +8,7 @@ This folder is the **single source of truth** for the storefront: change the fil
 
 ```
 site/
-├── index.html              # the shop: hero, catalogue, why NavMarket, under the hood, cart
+├── index.html              # the shop: hero, catalogue, why Kilimark, under the hood, cart
 ├── 404.html                # custom "page not found" page
 ├── health.json             # tiny file for health checks (curl, monitoring, CI)
 ├── robots.txt              # rules for search engines
@@ -39,7 +39,7 @@ site/
 ## Test locally
 
 ```bash
-cd ~/projets/navmarket-ops/site
+cd ~/projets/kilimark-ops/site
 python3 -m http.server 8080        # then open http://localhost:8080
 ```
 
@@ -47,7 +47,7 @@ Use a real HTTP server, not a double click on `index.html`: that is how Nginx wi
 
 ## Deploy to a server
 
-From the computer, in `~/projets/navmarket-ops`:
+From the computer, in `~/projets/kilimark-ops`:
 
 ```bash
 scp -i ~/.ssh/navmarket_vps -r site ubuntu@$VPS_IP:/tmp/navmarket-site
@@ -117,3 +117,4 @@ Always `sudo nginx -t`, then `sudo systemctl reload nginx`.
 
 - **v0** (S1.3, 9 Oct 2026): a single title and two lines, created on `navmarket-srv01` in lab S1.3. Kept in `docs/session-01/S1.3-storefront-v0.html`.
 - **v1.0.0** (23 Oct 2026): full storefront (catalogue, cart, dark mode, 404, health check).
+- **v1.1.0** (16 Nov 2026): renamed **Kilimark**, live at https://kilimark.com with Let's Encrypt HTTPS (lab S4.6). Logo letter N → K.

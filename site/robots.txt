@@ -1,3 +1,3 @@
-# NavMarket is a demo store for a DevOps / Cloud training.
+# Kilimark demo storefront (DevOps / Cloud project).
 User-agent: *
 Allow: /

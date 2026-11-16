@@ -8,7 +8,7 @@
 | S4.2 | Automatic DHCP (DORA) | manual, see below | ✅ 10 Nov |
 | S4.3 | HTTPS with my own certificate authority | `scripts/session-04/s4.3-https-lab-ca.sh` | ✅ 12 Nov |
 | S4.4 | Firewall: only 22, 80, 443 open | `scripts/session-04/s4.4-navmarket-srv01.nft` | ✅ 13 Nov |
-| S4.5 | Reverse proxy in front of 2 web servers | `scripts/session-04/s4.5-reverse-proxy.sh` | to run |
+| S4.5 | Reverse proxy in front of 2 web servers | `scripts/session-04/s4.5-reverse-proxy.sh` | ✅ 14 Nov |
 | S4.6 | Real domain + Let's Encrypt + fail2ban (vps01) | `scripts/session-04/s4.6-letsencrypt-vps.sh` | to run |
 | S4.x | Incident: name no longer resolves, wrong gateway | `scripts/session-04/s4.x-incident.sh` | to run |
 
@@ -19,6 +19,9 @@ Every server-side script writes its own proofs and is run through `scripts/sessi
 
 ## S4.1 Internal DNS ✅
 
+> **Goal:** Give names to the lab servers with an internal DNS.  
+> **What changes:** Before, IP addresses everywhere; after, `www.navmarket.lan` works from my computer.
+
 **Why:** people and scripts use **names**, not IPs. An IP can change; the name stays.
 
 - `dnsmasq` on srv01 answers for `navmarket.lan` (`local=/navmarket.lan/`: never asked to the Internet), and forwards the rest.
@@ -28,6 +31,9 @@ Every server-side script writes its own proofs and is run through `scripts/sessi
 **Proof** ([S4.1-proofs.txt](S4.1-proofs.txt)): `www` → CNAME → A, reverse lookup OK, `NXDOMAIN` for an unknown name, GitHub forwarded, `HTTP/1.1 200 OK` by name from the workstation.
 
 ## S4.2 Automatic DHCP ✅
+
+> **Goal:** Hand out network settings automatically with DHCP.  
+> **What changes:** Before, each machine needed a fixed IP typed by hand; after, a new machine gets its IP, gateway and DNS by itself, and its name in DNS.
 
 **Why:** a new machine gets its IP, gateway, DNS and lease time by itself. No typing, no duplicate IPs.
 
@@ -41,6 +47,9 @@ Every server-side script writes its own proofs and is run through `scripts/sessi
 ---
 
 ## S4.3 HTTPS with my own CA
+
+> **Goal:** Serve the storefront over HTTPS with a certificate from my own certificate authority.  
+> **What changes:** Before, clear-text HTTP; after, encrypted traffic and a trusted padlock on `www.navmarket.lan`.
 
 **Why:** HTTP is clear text. TLS **encrypts** and **proves the server's identity** with a certificate signed by an authority the client trusts. `.lan` names can't get a public certificate, so companies run an **internal CA**.
 
@@ -74,7 +83,10 @@ scripts/session-04/s4.3-https-lab-ca.sh     # from the repo root, on the worksta
 
 ## S4.4 Firewall: only 22, 80, 443 ✅
 
-**Why:** every open port is a door. **Default deny**: drop everything, then open only what is needed. Before, any program listening on srv01 was reachable; now a forgotten service stays blocked.
+> **Goal:** Close every door of srv01 except SSH, HTTP and HTTPS (plus DNS for my lab network).  
+> **What changes:** Before, any program listening on srv01 was reachable; after, a forgotten service stays blocked by default.
+
+**Why:** every open port is a door. **Default deny**: drop everything, then open only what is needed.
 
 **Done step by step on 13 Nov:**
 
@@ -85,22 +97,36 @@ scripts/session-04/s4.3-https-lab-ca.sh     # from the repo root, on the worksta
 
 **Proof** ([S4.4-proofs.txt](S4.4-proofs.txt)): from my computer 22, 80, 443 `OPEN`, test port 8081 `BLOCKED` · the same port answers `HTTP 200` inside srv01 · the blocked attempts appear as `nft-drop:` in `journalctl -k` · boot config `syntax OK`, `enabled`.
 
-## S4.5 Reverse proxy in front of 2 web servers
+## S4.5 Reverse proxy in front of 2 web servers ✅
 
-**Why:** clients talk to **one** entry point; behind it, several servers share the load and one can fail without an outage. Same idea as an AWS load balancer or a Kubernetes Ingress later.
+> **Goal:** Put Nginx in front of 2 web servers that share the visitors.  
+> **What changes:** Before, one server was a single point of failure; after, one server can go down without visitors noticing.
 
-- `navmarket-web@1` and `@2`: 2 web servers (systemd template, `DynamicUser`), on `127.0.0.1:8081/8082` only.
-- Nginx `upstream navmarket_backends` (round robin), `max_fails=1 fail_timeout=10s`: a dead backend is skipped for 10 s.
-- `https://www.navmarket.lan/lb/` → the pool. `X-Forwarded-For` / `X-Real-IP` give the backend the real client IP.
-- Each Nginx worker keeps its own rotation, so the order is not always strictly 1-2-1-2.
-
-```bash
-scripts/session-04/s4.4-run-on-srv01.sh scripts/session-04/s4.5-reverse-proxy.sh docs/session-04/S4.5-proofs.txt
+```
+                             ┌──▶ web1  127.0.0.1:8081
+browser ──HTTPS──▶ Nginx ────┤        (round robin)
+          /lb/    (proxy)    └──▶ web2  127.0.0.1:8082
 ```
 
-**Expected:** answers from `web1` and `web2` · web2 stopped → only `web1`, always `200` · web2 back → shared again.
+**Done step by step on 14 Nov:**
+
+1. **Two backends:** `navmarket-web@1` and `@2`, one systemd **template** (`%i` = 1 or 2), Python's HTTP server on `127.0.0.1` only, `DynamicUser`, `Restart=always`. Each serves a `health.json` saying who it is.
+2. **The proxy:** `upstream navmarket_backends` in `conf.d/` (round robin, `max_fails=1 fail_timeout=10s`), and `location /lb/` in its own file, pulled into the HTTPS site with one `include`. `X-Forwarded-For` / `X-Real-IP` give the backends the real client IP.
+3. **Failover test:** web2 stopped on purpose, then started again.
+
+**Proof** ([S4.5-proofs.txt](S4.5-proofs.txt)): both up → web1 and web2 share the requests · web2 stopped → 6 × `200` from web1 · Nginx logged `connect() failed (111: Connection refused)` once, retried on web1, then set web2 aside for 10 s · web2 back → traffic shared again · backends still on `127.0.0.1` only.
+
+**Problems met:**
+
+- **`active` but nothing listening:** the check ran milliseconds after the start. `active` means "process started", not "ready to answer": a real check asks the service itself (a **readiness probe** in Kubernetes words).
+- **First request gave `404`, no `X-Backend` header:** `systemctl reload` only sends a signal; the request was still served by an old worker with the old config. `nginx -T` showed the new route was loaded; a second try worked.
+- **Order web1, web1, web2:** each Nginx worker keeps its own round-robin counter.
+- **Script bug found:** `if nginx -t | tail -1` tests `tail`, not `nginx`. In a pipe, `$?` is the last command's result.
 
 ## S4.6 Real domain + Let's Encrypt + fail2ban (vps01)
+
+> **Goal:** Give the public server a real domain name with a Let's Encrypt certificate, and ban SSH attackers with fail2ban.  
+> **What changes:** Before, the public site was HTTP by IP; after, HTTPS trusted by every browser, renewed automatically, and brute-force attackers banned.
 
 **Why:** a public name and a certificate trusted by every browser, renewed automatically; and SSH brute force blocked (S2.6 showed the attacks).
 
@@ -128,6 +154,9 @@ scripts/session-04/s4.4-run-on-srv01.sh scripts/session-04/s4.6-letsencrypt-vps.
 **Expected:** domain = public IP · `HTTP/1.1 200` in HTTPS, HTTP → `301` · issuer Let's Encrypt, `Verify return code: 0` · renew dry run succeeds · `sshd` jail active.
 
 ## S4.x Incident: "the name no longer resolves, wrong gateway"
+
+> **Goal:** Troubleshoot "the name no longer resolves, wrong gateway" layer by layer.  
+> **What changes:** Before, I would guess; after, I find the cause in minutes with a method: IP, route, gateway, DNS.
 
 **Story:** after a bad change, a client in LAN A can't reach the web server, by IP **or** by name.
 

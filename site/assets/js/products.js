@@ -1,5 +1,5 @@
 /*
- * NavMarket catalogue and icons.
+ * Kilimark catalogue and icons (the NAVMARKET name below is kept: it is internal).
  * Data lives here, logic lives in app.js: to add a product, add one object below.
  * Prices are in euros. "tone" picks the colour of the product tile (see style.css, .tone-*).
  */

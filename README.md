@@ -1,4 +1,4 @@
-# NavMarket Ops
+# Kilimark Ops
 
 > I build and run, end to end, the platform behind an online shop: from the very first Linux server all the way to Kubernetes on AWS.
 > Every step is a real lab, documented, with proof.
@@ -10,7 +10,7 @@
 
 ## The project
 
-**NavMarket** is a fictional start-up that sells Navatech products online. I am its first operations (Ops) engineer: I set up the servers, the network, security, deployment and monitoring for its shop.
+**Kilimark** (formerly NavMarket) is the online shop whose platform I build and run. I am its operations (Ops) engineer: servers, network, security, deployment and monitoring. Its demo storefront is live at **https://kilimark.com**.
 
 The learning path follows the order in which a real platform grows:
 
@@ -44,15 +44,20 @@ Each lab has its own write-up in `docs/`: goal, approach, proof, problem encount
 ## Repository layout
 
 ```
-navmarket-ops/
+kilimark-ops/
 ├── README.md      ← this page
 ├── docs/          ← one write-up per lab, organized by session
 ├── scripts/       ← Bash and Python scripts, one folder per session (session-01...)
 ├── nginx/         ← web server configurations
-└── site/          ← the NavMarket storefront
+└── site/          ← the Kilimark storefront
 ```
 
 *This structure grows session by session.*
+
+## About the names
+
+The project was called **NavMarket** until 16 November 2026, then renamed **Kilimark**. Past write-ups and proofs keep the old name: they record what happened at the time.
+Internal technical names (`navmarket-srv01`, `navmarket-vps01`, `/srv/navmarket`, `navmarket.lan`, systemd units) also keep `navmarket` for now: renaming running infrastructure is a planned change of its own, to be automated later.
 
 ## Method
 
