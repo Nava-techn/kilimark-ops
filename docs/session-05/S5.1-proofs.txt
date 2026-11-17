@@ -46,3 +46,10 @@ legacy-20261117-223203
   "status": "ok",
   "version": "1.0.0"
 }
+
+## 8. Idempotence: the script changed, site/ did not -> nothing to do
+Deploying 1.0.0-7273466 to vps01:/srv/navmarket
+
+Already live: 1.0.0-7273466. Nothing to do.
+Deploying 1.0.0-7273466 to srv01:/srv/navmarket
+Already live: 1.0.0-7273466. Nothing to do.
