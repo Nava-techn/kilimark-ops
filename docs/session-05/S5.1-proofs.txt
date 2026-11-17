@@ -1,0 +1,48 @@
+# S5.1 proofs - 2026-11-17 23:55:17
+
+## 1. shellcheck
+0 warning
+
+## 2. vps01: deploy (same site/ commit: nothing to do)
+Deploying 1.0.0-7273466 to vps01:/srv/navmarket
+Live: /srv/navmarket -> /srv/navmarket-releases/1.0.0-7273466
+Health check OK: https://kilimark.com/health.json reports version 1.0.0
+Releases kept:
+1.0.0-7273466
+1.0.0-3ed6dfb-broken
+legacy-20261117-223203
+
+## 3. srv01: deploy with the web team permissions
+Deploying 1.0.0-7273466 to srv01:/srv/navmarket
+Live: /srv/navmarket -> /srv/navmarket-releases/1.0.0-7273466
+Health check OK: https://www.navmarket.lan/health.json reports version 1.0.0
+Releases kept:
+1.0.0-7273466
+legacy-20261117-225327
+1.0.0-3ed6dfb
+
+## 4. vps01: a broken release is rolled back automatically
+Deploying 1.0.0-7273466-broken to vps01:/srv/navmarket
+Live: /srv/navmarket -> /srv/navmarket-releases/1.0.0-7273466-broken
+curl: (22) The requested URL returned error: 404
+Health check FAILED on https://kilimark.com/health.json
+Rolled back to /srv/navmarket-releases/1.0.0-7273466
+exit code: 1
+
+## 5. What is live
+vps01: /srv/navmarket-releases/1.0.0-7273466
+srv01: /srv/navmarket-releases/1.0.0-7273466
+drwxrwsr-x 3 root webteamgrp 4096 Nov 17 22:55 /srv/navmarket-releases/1.0.0-7273466
+
+## 6. Releases on vps01
+1.0.0-7273466-broken
+1.0.0-7273466
+1.0.0-3ed6dfb-broken
+legacy-20261117-223203
+
+## 7. From the Internet
+{
+  "service": "kilimark-storefront",
+  "status": "ok",
+  "version": "1.0.0"
+}

@@ -88,7 +88,8 @@ remote() {
     return 1
   fi
 
-  # keep the newest releases, never the live one
+  # broken releases are never worth keeping (S5.1 lesson), then keep the newest, never the live one
+  find "$releases" -mindepth 1 -maxdepth 1 -type d -name "*-broken" -exec rm -rf {} +
   find "$releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2- \
     | grep -vxF "$new" | tail -n +"$keep" | xargs -r rm -rf
   echo "Releases kept:"; ls -1t "$releases"
