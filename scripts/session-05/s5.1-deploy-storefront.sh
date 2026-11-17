@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Created in Session 5, lab S5.1: idempotent deploy of the storefront (site/), shellcheck clean.
-# It automates the manual "atomic swap" of S1.5, with releases and an automatic rollback.
+# It automates the manual "atomic swap" of S1.5 / S4.6, with releases and an automatic rollback.
 #
 # Usage (from the repo root):
-#   scripts/session-05/s5.1-deploy-storefront.sh [-r web_root] [-k releases_to_keep] [-u health_url] <ssh-host>
-#   scripts/session-05/s5.1-deploy-storefront.sh vps01
-#   scripts/session-05/s5.1-deploy-storefront.sh -r /var/www/navmarket srv01
+#   scripts/session-05/s5.1-deploy-storefront.sh [options] <ssh-host>
+#     -n name    site name for the health check (https://name/health.json, asked on the server itself)
+#     -g group   team group owning the files (shared folder: dirs 2775, files 664). Default: root, 755/644
+#     -r root    web root served by Nginx (default /srv/navmarket)
+#     -k keep    releases to keep (default 3)
+#   scripts/session-05/s5.1-deploy-storefront.sh -n kilimark.com vps01
+#   scripts/session-05/s5.1-deploy-storefront.sh -n www.navmarket.lan -g <team-group> srv01
 #
 # On the server:
-#   /srv/navmarket-releases/v1.0.0-3f2a9c1/   one folder per release (version + Git commit)
+#   /srv/navmarket-releases/1.0.0-3f2a9c1/   one folder per release (version + Git commit)
 #   /srv/navmarket -> navmarket-releases/...  a symlink: Nginx serves the live release
 #
 # Idempotent: run it twice with the same commit and the second run changes nothing.
@@ -16,10 +20,10 @@
 # release comes back automatically. Exit codes: 0 deployed or nothing to do, 1 failed.
 set -euo pipefail
 
-root=/srv/navmarket keep=3 url=http://127.0.0.1/health.json
-usage() { echo "Usage: $0 [-r web_root] [-k keep] [-u health_url] <ssh-host>" >&2; exit 1; }
-while getopts "r:k:u:h" opt; do
-  case $opt in r) root=$OPTARG ;; k) keep=$OPTARG ;; u) url=$OPTARG ;; *) usage ;; esac
+root=/srv/navmarket keep=3 name=localhost group=""
+usage() { echo "Usage: $0 [-n name] [-g group] [-r root] [-k keep] <ssh-host>" >&2; exit 1; }
+while getopts "n:g:r:k:h" opt; do
+  case $opt in n) name=$OPTARG ;; g) group=$OPTARG ;; r) root=$OPTARG ;; k) keep=$OPTARG ;; *) usage ;; esac
 done
 shift $((OPTIND - 1))
 [ $# -eq 1 ] || usage
@@ -29,13 +33,13 @@ host=$1
 version=$(grep -oP '"version":\s*"\K[^"]+' site/health.json)
 commit=$(git rev-parse --short HEAD)
 git diff --quiet HEAD -- site || commit="$commit-dirty"   # uncommitted changes are visible in the name
-release="v$version-$commit"
+release="$version-$commit"
 echo "Deploying $release to $host:$root"
 
-# The part that runs on the server, as root. Arguments: release root keep url version
+# The part that runs on the server, as root. Arguments: release root keep name version group
 remote() {
   set -euo pipefail
-  local release=$1 root=$2 keep=$3 url=$4 version=$5
+  local release=$1 root=$2 keep=$3 name=$4 version=$5 group=$6
   local releases=$root-releases new=$root-releases/$release prev=""
 
   if [ "$(readlink -f "$root")" = "$new" ]; then
@@ -45,9 +49,15 @@ remote() {
   if [ ! -d "$new" ]; then                         # unpack next to the live site, rights included
     rm -rf "$new.tmp"; mkdir -p "$new.tmp"
     tar -xzf "/tmp/$release.tgz" -C "$new.tmp"
-    chown -R root:root "$new.tmp"
-    find "$new.tmp" -type d -exec chmod 755 {} +
-    find "$new.tmp" -type f -exec chmod 644 {} +
+    if [ -n "$group" ]; then                       # shared with a team (S1.2): setgid + group write
+      chown -R "root:$group" "$new.tmp"
+      find "$new.tmp" -type d -exec chmod 2775 {} +
+      find "$new.tmp" -type f -exec chmod 664 {} +
+    else
+      chown -R root:root "$new.tmp"
+      find "$new.tmp" -type d -exec chmod 755 {} +
+      find "$new.tmp" -type f -exec chmod 644 {} +
+    fi
     mv "$new.tmp" "$new"
   fi
   rm -f "/tmp/$release.tgz"
@@ -61,11 +71,13 @@ remote() {
   ln -sfn "$new" "$root.next" && mv -T "$root.next" "$root"   # atomic switch
   echo "Live: $root -> $new"
 
+  # Health check on the server itself: --resolve sends the name to 127.0.0.1.
+  # -k: this checks the CONTENT; the certificate is checked by the S4.3 / S4.6 proofs.
   sleep 1
-  if curl -fsS -m 5 "$url" | grep -q "\"version\": *\"$version\""; then
-    echo "Health check OK: $url reports version $version"
+  if curl -fsSk -m 5 --resolve "$name:443:127.0.0.1" "https://$name/health.json" | grep -q "\"version\": *\"$version\""; then
+    echo "Health check OK: https://$name/health.json reports version $version"
   else
-    echo "Health check FAILED on $url"
+    echo "Health check FAILED on https://$name/health.json"
     if [ -n "$prev" ]; then
       ln -sfn "$prev" "$root.next" && mv -T "$root.next" "$root"
       echo "Rolled back to $prev"
@@ -84,4 +96,4 @@ tar -czf "$tmp/$release.tgz" -C site .
 { declare -f remote; echo 'remote "$@"'; } > "$tmp/deploy-remote.sh"
 scp -q "$tmp/$release.tgz" "$tmp/deploy-remote.sh" "$host:/tmp/"
 # -t: sudo can ask for a password (srv01); on vps01 sudo needs none
-ssh -t "$host" "sudo bash /tmp/deploy-remote.sh '$release' '$root' '$keep' '$url' '$version'; rc=\$?; rm -f /tmp/deploy-remote.sh; exit \$rc"
+ssh -t "$host" "sudo bash /tmp/deploy-remote.sh '$release' '$root' '$keep' '$name' '$version' '$group'; rc=\$?; rm -f /tmp/deploy-remote.sh; exit \$rc"
