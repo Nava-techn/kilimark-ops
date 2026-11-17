@@ -8,6 +8,7 @@
 #     -g group   team group owning the files (shared folder: dirs 2775, files 664). Default: root, 755/644
 #     -r root    web root served by Nginx (default /srv/navmarket)
 #     -k keep    releases to keep (default 3)
+#     -x         test only: simulate a broken release (health.json removed) to see the rollback
 #   scripts/session-05/s5.1-deploy-storefront.sh -n kilimark.com vps01
 #   scripts/session-05/s5.1-deploy-storefront.sh -n www.navmarket.lan -g <team-group> srv01
 #
@@ -20,10 +21,10 @@
 # release comes back automatically. Exit codes: 0 deployed or nothing to do, 1 failed.
 set -euo pipefail
 
-root=/srv/navmarket keep=3 name=localhost group=""
-usage() { echo "Usage: $0 [-n name] [-g group] [-r root] [-k keep] <ssh-host>" >&2; exit 1; }
-while getopts "n:g:r:k:h" opt; do
-  case $opt in n) name=$OPTARG ;; g) group=$OPTARG ;; r) root=$OPTARG ;; k) keep=$OPTARG ;; *) usage ;; esac
+root=/srv/navmarket keep=3 name=localhost group="" broken=""
+usage() { echo "Usage: $0 [-n name] [-g group] [-r root] [-k keep] [-x] <ssh-host>" >&2; exit 1; }
+while getopts "n:g:r:k:xh" opt; do
+  case $opt in n) name=$OPTARG ;; g) group=$OPTARG ;; r) root=$OPTARG ;; k) keep=$OPTARG ;; x) broken=yes ;; *) usage ;; esac
 done
 shift $((OPTIND - 1))
 [ $# -eq 1 ] || usage
@@ -31,15 +32,15 @@ host=$1
 
 [ -f site/health.json ] || { echo "Run me from the repo root (site/ not found)" >&2; exit 1; }
 version=$(grep -oP '"version":\s*"\K[^"]+' site/health.json)
-commit=$(git rev-parse --short HEAD)
+commit=$(git log -1 --format=%h -- site)       # last commit that changed site/, not the repo HEAD
 git diff --quiet HEAD -- site || commit="$commit-dirty"   # uncommitted changes are visible in the name
-release="$version-$commit"
+release="$version-$commit${broken:+-broken}"
 echo "Deploying $release to $host:$root"
 
-# The part that runs on the server, as root. Arguments: release root keep name version group
+# The part that runs on the server, as root. Arguments: release root keep name version group broken
 remote() {
   set -euo pipefail
-  local release=$1 root=$2 keep=$3 name=$4 version=$5 group=$6
+  local release=$1 root=$2 keep=$3 name=$4 version=$5 group=$6 broken=${7:-}
   local releases=$root-releases new=$root-releases/$release prev=""
 
   if [ "$(readlink -f "$root")" = "$new" ]; then
@@ -49,6 +50,7 @@ remote() {
   if [ ! -d "$new" ]; then                         # unpack next to the live site, rights included
     rm -rf "$new.tmp"; mkdir -p "$new.tmp"
     tar -xzf "/tmp/$release.tgz" -C "$new.tmp"
+    [ -n "$broken" ] && rm -f "$new.tmp/health.json"   # -x: a broken build, on purpose
     if [ -n "$group" ]; then                       # shared with a team (S1.2): setgid + group write
       chown -R "root:$group" "$new.tmp"
       find "$new.tmp" -type d -exec chmod 2775 {} +
@@ -59,6 +61,7 @@ remote() {
       find "$new.tmp" -type f -exec chmod 644 {} +
     fi
     mv "$new.tmp" "$new"
+    touch "$new"                                   # deploy date, not the files' date (tar keeps those)
   fi
   rm -f "/tmp/$release.tgz"
 
@@ -96,4 +99,4 @@ tar -czf "$tmp/$release.tgz" -C site .
 { declare -f remote; echo 'remote "$@"'; } > "$tmp/deploy-remote.sh"
 scp -q "$tmp/$release.tgz" "$tmp/deploy-remote.sh" "$host:/tmp/"
 # -t: sudo can ask for a password (srv01); on vps01 sudo needs none
-ssh -t "$host" "sudo bash /tmp/deploy-remote.sh '$release' '$root' '$keep' '$name' '$version' '$group'; rc=\$?; rm -f /tmp/deploy-remote.sh; exit \$rc"
+ssh -t "$host" "sudo bash /tmp/deploy-remote.sh '$release' '$root' '$keep' '$name' '$version' '$group' '$broken'; rc=\$?; rm -f /tmp/deploy-remote.sh; exit \$rc"
