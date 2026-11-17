@@ -1,0 +1,36 @@
+# S4.x proofs - 2026-11-17 15:47:17
+
+## 1. Normal state
+ping web server by IP: OK
+resolve web.navmarket.lan: OK (10.10.2.10)
+
+## 2. Incident: a bad change sets the wrong gateway and the wrong DNS server
+ping web server by IP: FAILED
+resolve web.navmarket.lan: FAILED
+
+## 3. Diagnosis, layer by layer
+-- a) my own IP and routes:
+veth-a@if7       UP             10.10.1.10/24 fe80::bc28:8fff:fe51:16fc/64 
+default via 10.10.1.254 dev veth-a 
+10.10.1.0/24 dev veth-a proto kernel scope link src 10.10.1.10 
+-- b) can I reach my gateway?
+10.10.1.254 does not answer
+10.10.1.254 dev veth-a INCOMPLETE 
+-- c) the real router answers:
+64 bytes from 10.10.1.1: icmp_seq=1 ttl=64 time=0.638 ms
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+-- d) which DNS server am I using?
+nameserver 10.10.1.53
+-- e) ask the real DNS server directly:
+10.10.2.10
+=> Cause 1: default route via 10.10.1.254, a host that does not exist (ARP INCOMPLETE or FAILED).
+=> Cause 2: resolv.conf points to 10.10.1.53, no DNS server there.
+
+## 4. Fix
+default via 10.10.1.1 dev veth-a 
+
+## 5. Check after the fix
+ping web server by IP: OK
+resolve web.navmarket.lan: OK (10.10.2.10)
+
+Lab cleaned.

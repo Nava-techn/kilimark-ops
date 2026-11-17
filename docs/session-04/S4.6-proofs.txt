@@ -1,6 +1,6 @@
-# S4.6 proofs - 2026-11-16 22:37:46
+# S4.6 proofs - 2026-11-17 00:18:39
 
-## 1. Public DNS (asked to Google x.x.x.x)
+## 1. Public DNS (asked to Google 8.8.8.8)
 kilimark.com     -> <VPS_IP>
 www.kilimark.com -> <VPS_IP>
 
@@ -10,7 +10,7 @@ HTTP/1.1 200 OK
 HTTP/1.1 301 Moved Permanently
 Location: https://kilimark.com/
 {
-  "service": "navmarket-storefront",
+  "service": "kilimark-storefront",
   "status": "ok",
   "version": "1.0.0"
 }
@@ -28,23 +28,23 @@ Verify return code: 0 (ok)
 
 ## 4. Automatic renewal
 NEXT                        LEFT          LAST PASSED UNIT          ACTIVATES
-Tue 2026-11-17 01:53:36 UTC 4h 15min left n/a  n/a    certbot.timer certbot.service
+Tue 2026-11-17 01:53:36 UTC 2h 34min left n/a  n/a    certbot.timer certbot.service
 Simulating renewal of an existing certificate for kilimark.com and www.kilimark.com
 Congratulations, all simulated renewals succeeded: 
   /etc/letsencrypt/live/kilimark.com/fullchain.pem (success)
 
 ## 5. Firewall 2 (iptables): 80 and 443 above the final REJECT
-5    ACCEPT     tcp  --  x.x.x.x/0            x.x.x.x/0            state NEW tcp dpt:80
-6    ACCEPT     tcp  --  x.x.x.x/0            x.x.x.x/0            state NEW tcp dpt:443
-7    REJECT     all  --  x.x.x.x/0            x.x.x.x/0            reject-with icmp-host-prohibited
+6    ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0            state NEW tcp dpt:80
+7    ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0            state NEW tcp dpt:443
+8    REJECT     all  --  0.0.0.0/0            0.0.0.0/0            reject-with icmp-host-prohibited
 
 ## 6. fail2ban: SSH attackers banned automatically
 Status for the jail: sshd
 |- Filter
-|  |- Currently failed:	4
-|  |- Total failed:	4
+|  |- Currently failed:	13
+|  |- Total failed:	29
 |  `- Journal matches:	_SYSTEMD_UNIT=sshd.service + _COMM=sshd
 `- Actions
    |- Currently banned:	0
-   |- Total banned:	0
+   |- Total banned:	1
    `- Banned IP list:	

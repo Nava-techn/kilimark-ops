@@ -9,8 +9,8 @@
 | S4.3 | HTTPS with my own certificate authority | `scripts/session-04/s4.3-https-lab-ca.sh` | ✅ 12 Nov |
 | S4.4 | Firewall: only 22, 80, 443 open | `scripts/session-04/s4.4-navmarket-srv01.nft` | ✅ 13 Nov |
 | S4.5 | Reverse proxy in front of 2 web servers | `scripts/session-04/s4.5-reverse-proxy.sh` | ✅ 14 Nov |
-| S4.6 | Real domain + Let's Encrypt + fail2ban (vps01) | `scripts/session-04/s4.6-letsencrypt-vps.sh` | to run |
-| S4.x | Incident: name no longer resolves, wrong gateway | `scripts/session-04/s4.x-incident.sh` | to run |
+| S4.6 | Real domain + Let's Encrypt + fail2ban (vps01) | `scripts/session-04/s4.6-letsencrypt-vps.sh` | ✅ 17 Nov |
+| S4.x | Incident: name no longer resolves, wrong gateway | `scripts/session-04/s4.x-incident.sh` | ✅ 17 Nov |
 
 Every server-side script writes its own proofs and is run through `scripts/session-04/s4.4-run-on-srv01.sh`
 (copy, `sudo` once, proofs copied back with the IP masked).
@@ -123,60 +123,59 @@ browser ──HTTPS──▶ Nginx ────┤        (round robin)
 - **Order web1, web1, web2:** each Nginx worker keeps its own round-robin counter.
 - **Script bug found:** `if nginx -t | tail -1` tests `tail`, not `nginx`. In a pipe, `$?` is the last command's result.
 
-## S4.6 Real domain + Let's Encrypt + fail2ban (vps01)
+## S4.6 Real domain + Let's Encrypt + fail2ban ✅
 
 > **Goal:** Give the public server a real domain name with a Let's Encrypt certificate, and ban SSH attackers with fail2ban.  
-> **What changes:** Before, the public site was HTTP by IP; after, HTTPS trusted by every browser, renewed automatically, and brute-force attackers banned.
+> **What changes:** Before, the public site was HTTP by IP; after, HTTPS trusted by every browser at **https://kilimark.com**, renewed automatically, and brute-force attackers banned.
 
-**Why:** a public name and a certificate trusted by every browser, renewed automatically; and SSH brute force blocked (S2.6 showed the attacks).
+**The name:** the project became **Kilimark** on 16 Nov (see the main README). `kilimark.com` was registered at Spaceship (1 year, auto-renew, free WHOIS privacy).
 
-**Before (by hand, 10 min):**
+**Done step by step on 16 and 17 Nov:**
 
-1. A free domain: [duckdns.org](https://www.duckdns.org) (sign in, create `something.duckdns.org`, set it to vps01's public IP).
-2. Oracle console: security list → add ingress **TCP 443** from `0.0.0.0/0` (like port 80 in S1.5).
-3. `~/.ssh/config` on the workstation:
+1. **DNS:** two `A` records at the registrar, `@` and `www`, to vps01's public IP. Checked with `dig`, also through Google's public DNS.
+2. **Port 443 in both firewalls:** an ingress rule in Oracle's security list, and an iptables `ACCEPT` **inserted above** the final `REJECT`, saved with `netfilter-persistent`.
+3. **Let's Encrypt with certbot:** `server_name kilimark.com www.kilimark.com` in Nginx, then `certbot --nginx --redirect`. Let's Encrypt checked domain ownership with the **HTTP-01 challenge** (a token served on port 80), signed a 90-day certificate, and `certbot.timer` renews it.
+4. **fail2ban:** jail `sshd` in `/etc/fail2ban/jail.d/kilimark.local` (never in `jail.conf`): 5 failures in 10 min = banned 1 h, logs read from the systemd journal.
+5. **Storefront renamed Kilimark 1.0.0**, deployed with the atomic swap of S1.5.
 
-```
-Host vps01
-    HostName <PUBLIC_IP>
-    User ubuntu
-    IdentityFile ~/.ssh/navmarket_vps
-```
+**Proof** ([S4.6-proofs.txt](S4.6-proofs.txt)): both names → vps01 (Google DNS) · `200` / `200` over HTTPS, HTTP → `301` · `kilimark-storefront 1.0.0` · issuer Let's Encrypt, `TLSv1.3`, `Verify return code: 0 (ok)`, valid until 14 Feb 2027 · simulated renewal succeeded · 80/443 above `REJECT` · fail2ban: 29 failed SSH logins seen, 1 attacker banned within hours.
 
-```bash
-scripts/session-04/s4.4-run-on-srv01.sh scripts/session-04/s4.6-letsencrypt-vps.sh docs/session-04/S4.6-proofs.txt \
-    vps01 DOMAIN=something.duckdns.org EMAIL=my@email
-```
+**Problems met:**
 
-- Let's Encrypt checks I control the domain (HTTP-01 challenge on port 80), then signs a **90-day** certificate; `certbot.timer` renews it.
-- fail2ban: 5 failed SSH logins in 10 min → banned 1 h.
+- **Port 443 test: `timeout` then `Connection refused`.** Timeout = something dropped the packet on the way (the Oracle security list had no 443 rule yet). Refused = the packet reached vps01, where nothing listened yet. Same failure, two different layers.
+- **"I can't reach the site by IP":** the browser tried HTTPS first, before port 443 was ready. Typing `http://` worked; after step 3, HTTP redirects to HTTPS.
+- **A rollback by mistake:** after a successful deploy, the rollback command put the old NavMarket site back. Fix: correct the files, deploy again. A rollback is for a broken version only.
+- **The proofs masked too much:** the IP-masking `sed` also hid `8.8.8.8` and `0.0.0.0/0`. Fix: protect them with a placeholder, mask, then restore.
+- **iptables line numbers moved** (80/443 went from lines 5-6 to 6-7): fail2ban adds its own rule at the top of `INPUT` to send SSH traffic to its ban list.
 
-**Expected:** domain = public IP · `HTTP/1.1 200` in HTTPS, HTTP → `301` · issuer Let's Encrypt, `Verify return code: 0` · renew dry run succeeds · `sshd` jail active.
-
-## S4.x Incident: "the name no longer resolves, wrong gateway"
+## S4.x Incident: "the name no longer resolves, wrong gateway" ✅
 
 > **Goal:** Troubleshoot "the name no longer resolves, wrong gateway" layer by layer.  
 > **What changes:** Before, I would guess; after, I find the cause in minutes with a method: IP, route, gateway, DNS.
 
-**Story:** after a bad change, a client in LAN A can't reach the web server, by IP **or** by name.
+**Story:** after a colleague's "small change" in the S3 lab, users in LAN A report that `web.navmarket.lan` no longer works. I don't know what was changed.
 
-**Method, bottom to top:**
+**Done by hand on 17 Nov, then replayed by the script for the proofs:**
 
-1. My IP and routes: `ip -br addr`, `ip route`.
-2. My gateway: `ping` it, `ip neigh` (ARP `INCOMPLETE`/`FAILED` = nobody there).
-3. The DNS server I use: `/etc/resolv.conf`.
-4. Ask the right DNS server directly: `dig @10.10.1.1 name`.
+1. **Name or network?** `dig` by name times out, **and** `ping` by IP fails: the network itself is broken, not only DNS.
+2. **My IP and routes:** address OK, but `default via 10.10.1.254`, while the S3.1 plan says the gateway is `10.10.1.1`.
+3. **My gateway:** `ip neigh` shows `10.10.1.254 INCOMPLETE`: ARP gets no answer, nobody has that address. `10.10.1.1` is known (`STALE`) and answers ping.
+4. **My DNS server:** `resolv.conf` says `10.10.1.53` (`FAILED` in ARP: nobody there). `dig @10.10.1.1` answers `10.10.2.10`.
+5. **Proved before fixing:** the real router and the real DNS server both answer.
+6. **Fixed one cause at a time:** `ip route replace default via 10.10.1.1` → ping OK, name still failing; then `nameserver 10.10.1.1` → name OK.
 
-**Two causes:** default route via `10.10.1.254` (does not exist), and `resolv.conf` → `10.10.1.53` (no DNS there). **Fix:** `ip route replace default via 10.10.1.1` + the right nameserver.
+**Proof** ([S4.x-proofs.txt](S4.x-proofs.txt)): normal → `FAILED / FAILED` after the change → diagnosis shows both causes → `OK / OK` after the fix. The lab cleans itself.
 
-```bash
-scp scripts/session-03/s3.2-lab-netns.sh srv01:/tmp/
-scripts/session-04/s4.4-run-on-srv01.sh scripts/session-04/s4.x-incident.sh docs/session-04/S4.x-proofs.txt
-```
+**Incident report:**
 
-**Expected:** OK → FAILED / FAILED → diagnosis shows both causes → OK / OK. The lab cleans itself.
+| Part | Content |
+| --- | --- |
+| Symptom | `web.navmarket.lan` unreachable from LAN A |
+| Root causes | default route changed to `10.10.1.254` (no such host); DNS server changed to `10.10.1.53` (no such host) |
+| Fix | gateway and DNS back to `10.10.1.1` |
+| Prevention | changes through Git and review; a monitoring check on name resolution (S5.2) |
 
----
+**Details learned:** `ttl=63` in the ping after the fix = one router crossed (64 - 1). `ip route replace` swaps a route in one move, without a moment with no route. In a command, `<...>` is a placeholder to replace: bash reads `<` as "read from a file".
 
 ## What I learned
 
