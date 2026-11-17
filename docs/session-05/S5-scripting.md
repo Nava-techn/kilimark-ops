@@ -4,7 +4,7 @@
 
 | Lab | What | Script | Status |
 | --- | --- | --- | --- |
-| S5.1 | Idempotent deploy, shellcheck clean | `scripts/session-05/s5.1-deploy-storefront.sh` | written + tested, to run on servers |
+| S5.1 | Idempotent deploy, shellcheck clean | `scripts/session-05/s5.1-deploy-storefront.sh` | ✅ 18 Nov |
 | S5.2 | Health check with an exit code | `scripts/session-05/s5.2-healthcheck.sh` | written + tested, to run |
 | S5.3 | Navatech product inventory in Python | `scripts/session-05/s5.3-inventory.py` | written + tested |
 | S5.4 | Log analysis in Python, JSON export | `scripts/session-05/s5.4-log-report.py` | written + tested, to run on real logs |
@@ -13,29 +13,37 @@ Tested on 10 Nov in a sandbox (sample data, local web servers). The proofs below
 
 ---
 
-## S5.1 Idempotent deploy: `deploy-storefront.sh`
+## S5.1 Idempotent deploy: `s5.1-deploy-storefront.sh` ✅
 
 > **Goal:** Deploy the storefront with one command that can safely be run again.  
 > **What changes:** Before, manual copy commands; after, versioned releases, an atomic switch, and an automatic rollback if the health check fails.
 
-**Idempotent** = running it twice gives the same result as once. The second run says *"Already live, nothing to do"*. That is what makes automation safe to re-run (CI, Ansible in session 6).
+**Design:** each version gets its own folder, and the web root becomes a symlink.
 
-How it works:
-
-1. Release name = version from `health.json` + Git commit (`v1.0.0-3f2a9c1`, `-dirty` if `site/` has uncommitted changes).
-2. Upload a `.tgz`, unpack into `/srv/navmarket-releases/<release>`, rights set **before** going live.
-3. `/srv/navmarket` becomes a **symlink**; `ln -sfn` + `mv -T` switch it **atomically** (better than the 2 `mv` of S1.5).
-4. Health check: `health.json` must report the new version, otherwise **automatic rollback** and exit `1`.
-5. Keeps the 3 newest releases (never deletes the live one).
-
-Good Bash habits used: `set -euo pipefail`, `getopts`, quoted variables, `trap` cleanup, a function sent to the server with `declare -f`, `shellcheck` with **0 warnings**.
-
-```bash
-shellcheck scripts/session-05/s5.1-deploy-storefront.sh          # nothing printed = clean
-scripts/session-05/s5.1-deploy-storefront.sh vps01               # 1st run: deploys
-scripts/session-05/s5.1-deploy-storefront.sh vps01               # 2nd run: "Nothing to do"
-scripts/session-05/s5.1-deploy-storefront.sh -r <srv01 root> srv01
 ```
+/srv/navmarket-releases/1.0.0-7273466/    version + last Git commit that changed site/
+/srv/navmarket -> navmarket-releases/...   Nginx serves the live release
+```
+
+**How it works:** pack `site/` → unpack next to the live site, rights included → switch the symlink atomically (`ln -sfn` + `mv -T`) → health check on the server itself (`curl --resolve name:443:127.0.0.1 https://name/health.json` must report the version) → if it fails, switch back and exit `1` → keep the 3 newest releases, never the live one, never a broken one.
+
+| Option | vps01 | srv01 |
+| --- | --- | --- |
+| `-n` name for the health check | `kilimark.com` | `www.navmarket.lan` |
+| `-g` team group | none: `root`, 755/644 | `webteamgrp`: 2775/664 (setgid, S1.2) |
+| `-x` | test only: deploys a release without `health.json` to prove the rollback | |
+
+**Done on 17 and 18 Nov:** shellcheck (0 warning) → first deploy on vps01 (the old folder kept as `legacy-...`) → second run "Nothing to do" → broken release on purpose → rollback → same script on srv01 with the team permissions.
+
+**Proof** ([S5.1-proofs.txt](S5.1-proofs.txt)): shellcheck clean · both servers on `1.0.0-7273466` · srv01 `drwxrwsr-x root webteamgrp` · broken release: `404` → `FAILED` → `Rolled back` → exit code `1` · the script changed, `site/` did not → "Nothing to do" on both servers · `kilimark-storefront 1.0.0` from the Internet.
+
+**Problems met (and fixed):**
+
+- **`Permission denied`, exit 126:** the script lost its execute bit when the file was rewritten. `chmod +x`, then commit: Git keeps the bit. (127 would mean "command not found".)
+- **Release folders dated from the past:** `tar` restores the files' own dates, so "keep the newest" sorted wrong. Fix: `touch` the release at deploy time.
+- **A docs-only commit redeployed an identical site:** the name used the repo HEAD. Fix: `git log -1 --format=%h -- site`, the last commit that changed `site/`.
+- **The cleanup kept a broken release and deleted a good one:** broken releases counted in "keep 3". Fix: delete `*-broken` first.
+- **Never hide a sudo prompt:** the proofs use `tee` (screen + file), then remove the prompt lines.
 
 ## S5.2 Health check: `healthcheck.sh`
 
