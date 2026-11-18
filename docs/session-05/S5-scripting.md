@@ -5,7 +5,7 @@
 | Lab | What | Script | Status |
 | --- | --- | --- | --- |
 | S5.1 | Idempotent deploy, shellcheck clean | `scripts/session-05/s5.1-deploy-storefront.sh` | ✅ 18 Nov |
-| S5.2 | Health check with an exit code | `scripts/session-05/s5.2-healthcheck.sh` | written + tested, to run |
+| S5.2 | Health check with an exit code, run by a systemd timer | `scripts/session-05/s5.2-healthcheck.{sh,service,timer}` | ✅ 18 Nov |
 | S5.3 | Navatech product inventory in Python | `scripts/session-05/s5.3-inventory.py` | written + tested |
 | S5.4 | Log analysis in Python, JSON export | `scripts/session-05/s5.4-log-report.py` | written + tested, to run on real logs |
 
@@ -45,24 +45,20 @@ Tested on 10 Nov in a sandbox (sample data, local web servers). The proofs below
 - **The cleanup kept a broken release and deleted a good one:** broken releases counted in "keep 3". Fix: delete `*-broken` first.
 - **Never hide a sudo prompt:** the proofs use `tee` (screen + file), then remove the prompt lines.
 
-## S5.2 Health check: `healthcheck.sh`
+## S5.2 Health check: `s5.2-healthcheck.sh` ✅
 
 > **Goal:** Check the site's health with a script that returns an exit code.  
 > **What changes:** Before, I checked by eye; after, cron or a CI pipeline knows automatically whether the site is OK, slow or down.
 
-Per URL: HTTP `200`, `"status": "ok"` in `health.json`, response time, days left on the HTTPS certificate.
+**Per URL:** HTTP `200` · `"status": "ok"` in `health.json` · response time under a limit (`-w`, 800 ms) · days left on the HTTPS certificate (`-d`, 14). The exit code is the **worst** result: `0` OK, `1` WARNING, `2` CRITICAL (the monitoring convention).
 
-| Exit code | Meaning | Used by |
-| --- | --- | --- |
-| `0` | OK | cron, CI, monitoring (session 15) |
-| `1` | WARNING (slow, certificate < 14 days) | |
-| `2` | CRITICAL (down, wrong answer, expired) | |
+**Runs by itself:** a systemd **user** timer on my workstation (`s5.2-healthcheck.timer`, every 5 minutes, `Persistent=true`) starts `s5.2-healthcheck.service` (oneshot). Results go to `journalctl --user -u s5.2-healthcheck`; a non-zero exit code marks the service `failed`. Why a timer and not cron: logs and failures come for free, and missed runs are caught up.
 
-```bash
-scripts/session-05/s5.2-healthcheck.sh https://www.navmarket.lan/health.json http://<VPS_IP>/health.json; echo "exit code: $?"
-```
+**Done on 18 Nov:** both sites `OK` (kilimark.com 38 ms through the Internet, www.navmarket.lan 23 ms locally, certificates 88 and 389 days) → `/nope` gives `CRITICAL`, exit 2 → a 1 ms limit gives `WARNING`, exit 1 → timer installed → **real outage**: Nginx stopped on srv01.
 
-Sandbox test: `OK ... HTTP 200 in 3 ms` / `CRITICAL ... HTTP 404` → exit `2`; certificate check `valid for 396 more days`.
+**Proof** ([S5.2-proofs.txt](S5.2-proofs.txt)): exit codes `0 / 2 / 1` · timer every 5 minutes · outage: `CRITICAL ... curl error 7` (connection refused) + `no TLS certificate read`, service `failed` · Nginx restarted: 4 × `OK`, service no longer failed.
+
+**Learned:** each check is independent (a missing page with a valid certificate is still `CRITICAL` overall); curl's error codes tell the layer (6 DNS, 7 refused, 28 timeout, 60 certificate); a oneshot service is `inactive` when it succeeded, `failed` when it did not.
 
 ## S5.3 Inventory in Python: `inventory.py`
 

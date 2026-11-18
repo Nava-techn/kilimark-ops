@@ -1,0 +1,11 @@
+# Session 5, lab S5.2: run the health check once (started by s5.2-healthcheck.timer).
+# systemd USER service on the workstation. Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp scripts/session-05/s5.2-healthcheck.{service,timer} ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now s5.2-healthcheck.timer
+[Unit]
+Description=Kilimark health check (kilimark.com + www.navmarket.lan)
+
+[Service]
+Type=oneshot
+ExecStart=%h/projets/kilimark-ops/scripts/session-05/s5.2-healthcheck.sh https://kilimark.com/health.json https://www.navmarket.lan/health.json

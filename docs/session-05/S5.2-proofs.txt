@@ -1,0 +1,32 @@
+# S5.2 proofs - 2026-11-18 00:16:55
+
+## 1. Exit codes: OK / CRITICAL / WARNING
+OK       https://kilimark.com/health.json - HTTP 200 in 38 ms
+OK       https://kilimark.com/health.json - certificate valid for 88 more days
+OK       https://www.navmarket.lan/health.json - HTTP 200 in 23 ms
+OK       https://www.navmarket.lan/health.json - certificate valid for 389 more days
+exit code: 0
+CRITICAL https://kilimark.com/nope - HTTP 404
+OK       https://kilimark.com/nope - certificate valid for 88 more days
+exit code: 2
+WARNING  https://kilimark.com/health.json - slow: 39 ms (limit 1 ms)
+OK       https://kilimark.com/health.json - certificate valid for 88 more days
+exit code: 1
+
+## 2. Runs by itself every 5 minutes (systemd user timer)
+NEXT                            LEFT LAST                             PASSED UNIT                   ACTIVATES
+Wed 2026-11-18 00:20:55 CET 3min 58s Wed 2026-11-18 00:15:55 CET 1min 1s ago s5.2-healthcheck.timer s5.2-healthcheck.service
+
+## 3. Outage: Nginx stopped on srv01
+Job for s5.2-healthcheck.service failed because the control process exited with error code.
+See "systemctl --user status s5.2-healthcheck.service" and "journalctl --user -xeu s5.2-healthcheck.service" for details.
+CRITICAL https://www.navmarket.lan/health.json - no HTTP answer (curl error 7: 6 = DNS, 7 = refused, 28 = timeout, 60 = certificate)
+CRITICAL https://www.navmarket.lan/health.json - no TLS certificate read
+service state: failed
+
+## 4. Repair: Nginx started again
+OK       https://kilimark.com/health.json - HTTP 200 in 52 ms
+OK       https://kilimark.com/health.json - certificate valid for 88 more days
+OK       https://www.navmarket.lan/health.json - HTTP 200 in 19 ms
+OK       https://www.navmarket.lan/health.json - certificate valid for 389 more days
+service state: inactive

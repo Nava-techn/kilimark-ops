@@ -1,0 +1,11 @@
+# Session 5, lab S5.2: run the health check every 5 minutes.
+[Unit]
+Description=Kilimark health check every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
