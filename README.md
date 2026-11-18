@@ -3,7 +3,7 @@
 > I build and run, end to end, the platform behind an online shop: from the very first Linux server all the way to Kubernetes on AWS.
 > Every step is a real lab, documented, with proof.
 
-**Current progress: session 4 / 24** · [See my live progress](https://nava-techn.github.io/navmarket-roadmap/)
+**Current progress: session 5 / 24** · [See my live progress](https://nava-techn.github.io/navmarket-roadmap/)
 **LinkedIn:** [Write to me on LinkedIn, I'll answer](https://www.linkedin.com/in/valdes-nague/)
 
 ---
@@ -39,6 +39,7 @@ Each lab has its own write-up in `docs/`: goal, approach, proof, problem encount
 | 2 | Linux administration: SSH with keys only, self-healing systemd service, nightly backups, full-disk diagnosis, analysis of real attacks in the logs, Nginx incident | [Session 2](docs/session-02/) | ✅ |
 | 3 | Networking: addressing plan, Linux router, annotated packet capture, NAT to the Internet | [Session 3](docs/session-03/) | ✅ |
 | 4 | Network services: internal DNS and DHCP, HTTPS with my own certificate authority, nftables firewall, reverse proxy with failover, **kilimark.com** live with Let's Encrypt and fail2ban, network incident solved layer by layer | [Session 4](docs/session-04/S4-network-services.md) | ✅ |
+| 5 | Scripting: idempotent deploy script with automatic rollback (2 servers), health check with exit codes run by a systemd timer, Python inventory with data validation, analysis of the real kilimark.com logs (11,425 requests, 4,094 bot probes) | [Session 5](docs/session-05/S5-scripting.md) | ✅ |
 
 *This table is updated every time a lab is completed.*
 

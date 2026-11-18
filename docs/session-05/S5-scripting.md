@@ -7,7 +7,7 @@
 | S5.1 | Idempotent deploy, shellcheck clean | `scripts/session-05/s5.1-deploy-storefront.sh` | ✅ 18 Nov |
 | S5.2 | Health check with an exit code, run by a systemd timer | `scripts/session-05/s5.2-healthcheck.{sh,service,timer}` | ✅ 18 Nov |
 | S5.3 | Navatech product inventory in Python | `scripts/session-05/s5.3-inventory.py` | ✅ 18 Nov |
-| S5.4 | Log analysis in Python, JSON export | `scripts/session-05/s5.4-log-report.py` | written + tested, to run on real logs |
+| S5.4 | Log analysis in Python, JSON export | `scripts/session-05/s5.4-log-report.py` | ✅ 18 Nov |
 
 Tested on 10 Nov in a sandbox (sample data, local web servers). The proofs below must come from **my** servers.
 
@@ -75,23 +75,26 @@ Tested on 10 Nov in a sandbox (sample data, local web servers). The proofs below
 
 **Proof** ([S5.3-proofs.txt](S5.3-proofs.txt), 18 Nov): 12 products, 589 units, **23,146 €** of stock · to reorder: Glide mouse (out of stock), Volt 20K, Nava Buds · JSON export of 12 products · a CSV with 3 broken rows (text instead of a price, a duplicate SKU, a negative stock): report on the 2 good rows, 3 `SKIPPED` lines, exit `1` · missing file: `ERROR`, exit `2`.
 
-## S5.4 Log analysis: `log_report.py`
+## S5.4 Log analysis: `s5.4-log-report.py` ✅
 
 > **Goal:** Analyse the Nginx logs in Python and export the results as JSON.  
 > **What changes:** Before, a Bash report to read by eye; after, structured data that another tool can use.
 
-The Python version of `nginx-report.sh` (S2.5): `.log` and `.gz`, oldest first, regex on the "combined" format.
-JSON: period, requests, status codes, error rate, top IPs, top paths, requests per hour, **suspicious paths** (`wp-`, `.php`, `.env`, `.git`...). `--mask` hides the end of IPs before anything goes to Git.
+**How:** each line of the "combined" log format is cut by a regex (IP, date, method, path, status, size, user agent), counted with `Counter`, and exported as JSON. Current and rotated logs (`.gz`) are read oldest first. `--mask` hides the end of every IP, so the report can live in a public repo.
 
-```bash
-scp scripts/session-05/s5.4-log-report.py srv01:/tmp/
-ssh -t srv01 'sudo python3 /tmp/log_report.py /var/log/nginx/access.log* --mask -o /tmp/S5.4-report.json'
-scp srv01:/tmp/S5.4-report.json docs/session-05/
-```
+**Run on the real logs of kilimark.com (vps01), 18 Nov** → [S5.4-report.json](S5.4-report.json):
 
-**Bash or Python?** Bash to chain commands (S2.5). Python as soon as there is parsing, data structures or JSON: easier to read, test and extend.
+| Measure | Value |
+| --- | --- |
+| Period | 4 Nov → 18 Nov 2026 (logrotate keeps 14 days: older logs are already deleted) |
+| Requests | 11,425 (590 lines not parsed: malformed requests from bots) |
+| Status codes | `200` 2,589 · `301` 392 (HTTP → HTTPS) · `400` 135 · `404` **7,982** · `405` 305 |
+| Error rate | **73.8 %** |
+| Suspicious requests | **4,094**: `/.env` (279), `/.git/config` (60), `/.env.local`, `/.env.production`, `/.env.backup`... |
 
----
+**What it means:** most of the traffic on a new public server is **bots**, not people. They look for leaked secrets (`.env` files hold passwords and API keys), exposed Git repositories (`.git/config`), or known flaws in other products (`/SDK/webLanguage` targets a well-known camera vulnerability). The storefront is static and contains none of these files, so every probe ends in `404`: the high error rate is the sound of attacks **failing**.
+
+**Lessons:** never deploy secrets or `.git` in a web root (the deploy script only ships `site/`) · a file written with `sudo` belongs to root: delete it with `sudo` too · next step: block scanners automatically (fail2ban on Nginx logs) and turn this JSON into a dashboard (sessions 22-24).
 
 ## What I learned
 

@@ -1,0 +1,130 @@
+{
+  "files": [
+    "/var/log/nginx/access.log.14.gz",
+    "/var/log/nginx/access.log.13.gz",
+    "/var/log/nginx/access.log.12.gz",
+    "/var/log/nginx/access.log.11.gz",
+    "/var/log/nginx/access.log.10.gz",
+    "/var/log/nginx/access.log.9.gz",
+    "/var/log/nginx/access.log.8.gz",
+    "/var/log/nginx/access.log.7.gz",
+    "/var/log/nginx/access.log.6.gz",
+    "/var/log/nginx/access.log.5.gz",
+    "/var/log/nginx/access.log.4.gz",
+    "/var/log/nginx/access.log.3.gz",
+    "/var/log/nginx/access.log.2.gz",
+    "/var/log/nginx/access.log.1",
+    "/var/log/nginx/access.log"
+  ],
+  "period": {
+    "from": "2026-11-04T00:09:13+00:00",
+    "to": "2026-11-18T09:20:22+00:00"
+  },
+  "requests": 11425,
+  "unparsed_lines": 590,
+  "bytes_sent": 23091537,
+  "error_rate_percent": 73.8,
+  "status_codes": {
+    "200": 2589,
+    "206": 6,
+    "301": 392,
+    "304": 4,
+    "400": 135,
+    "403": 12,
+    "404": 7982,
+    "405": 305
+  },
+  "top_ips": [
+    [
+      "195.178.110.x",
+      519
+    ],
+    [
+      "34.140.28.x",
+      502
+    ],
+    [
+      "185.177.72.x",
+      500
+    ],
+    [
+      "45.156.87.x",
+      498
+    ],
+    [
+      "78.153.140.x",
+      350
+    ]
+  ],
+  "top_paths": [
+    [
+      "/",
+      2477
+    ],
+    [
+      "/assets/img/favicon.svg",
+      300
+    ],
+    [
+      "/.env",
+      279
+    ],
+    [
+      "/SDK/webLanguage",
+      277
+    ],
+    [
+      "/assets/js/products.js",
+      137
+    ]
+  ],
+  "requests_per_hour": {
+    "00:00": 224,
+    "01:00": 159,
+    "02:00": 222,
+    "03:00": 264,
+    "04:00": 847,
+    "05:00": 535,
+    "06:00": 472,
+    "07:00": 555,
+    "08:00": 636,
+    "09:00": 329,
+    "10:00": 1218,
+    "11:00": 437,
+    "12:00": 204,
+    "13:00": 545,
+    "14:00": 258,
+    "15:00": 673,
+    "16:00": 530,
+    "17:00": 390,
+    "18:00": 192,
+    "19:00": 724,
+    "20:00": 329,
+    "21:00": 888,
+    "22:00": 536,
+    "23:00": 258
+  },
+  "suspicious_requests": 4094,
+  "top_suspicious_paths": [
+    [
+      "/.env",
+      279
+    ],
+    [
+      "/.git/config",
+      60
+    ],
+    [
+      "/.env.local",
+      38
+    ],
+    [
+      "/.env.production",
+      37
+    ],
+    [
+      "/.env.backup",
+      32
+    ]
+  ]
+}
