@@ -1,0 +1,40 @@
+# S5.3 proofs - 2026-11-18 09:25:14
+
+## 1. Report per category
+category     products   units   stock value
+audio               3     103      8767.00€
+carry               2      62      2698.00€
+power               3     345      6860.00€
+workspace           4      79      4821.00€
+TOTAL              12     589     23146.00€
+exit code: 0
+
+## 2. Products to reorder
+glide-mouse   Glide Wireless Mouse         stock   0 / reorder at 25   OUT OF STOCK
+volt-20k      Volt 20K Power Bank          stock   5 / reorder at 20   low
+nava-buds     Nava Buds Pro                stock   8 / reorder at 15   low
+exit code: 0
+
+## 3. JSON export
+Written: /tmp/inventory.json (12 products)
+12 products, total value 23146.0 EUR
+
+## 4. Bad data: 2 good rows + 3 bad rows
+sku,name,category,price,stock,reorder_level
+nava-studio,Nava Studio Headphones,audio,149,34,10
+nava-buds,Nava Buds Pro,audio,89,8,15
+pulse-x,Pulse X Speaker,audio,abc,10,5
+nava-studio,Duplicate Headphones,audio,99,3,1
+ghost-item,Ghost Item,power,20,-4,2
+--- result:
+SKIPPED line 4: could not convert string to float: 'abc'
+SKIPPED line 5: duplicate sku nava-studio
+SKIPPED line 6: empty sku or negative number
+category     products   units   stock value
+audio               2      42      5778.00€
+TOTAL               2      42      5778.00€
+exit code: 1
+
+## 5. Missing file
+ERROR: /tmp/nothing.csv: [Errno 2] No such file or directory: '/tmp/nothing.csv'
+exit code: 2

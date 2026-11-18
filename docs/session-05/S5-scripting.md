@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | S5.1 | Idempotent deploy, shellcheck clean | `scripts/session-05/s5.1-deploy-storefront.sh` | ✅ 18 Nov |
 | S5.2 | Health check with an exit code, run by a systemd timer | `scripts/session-05/s5.2-healthcheck.{sh,service,timer}` | ✅ 18 Nov |
-| S5.3 | Navatech product inventory in Python | `scripts/session-05/s5.3-inventory.py` | written + tested |
+| S5.3 | Navatech product inventory in Python | `scripts/session-05/s5.3-inventory.py` | ✅ 18 Nov |
 | S5.4 | Log analysis in Python, JSON export | `scripts/session-05/s5.4-log-report.py` | written + tested, to run on real logs |
 
 Tested on 10 Nov in a sandbox (sample data, local web servers). The proofs below must come from **my** servers.
@@ -60,22 +60,20 @@ Tested on 10 Nov in a sandbox (sample data, local web servers). The proofs below
 
 **Learned:** each check is independent (a missing page with a valid certificate is still `CRITICAL` overall); curl's error codes tell the layer (6 DNS, 7 refused, 28 timeout, 60 certificate); a oneshot service is `inactive` when it succeeded, `failed` when it did not.
 
-## S5.3 Inventory in Python: `inventory.py`
+## S5.3 Inventory in Python: `s5.3-inventory.py` ✅
 
-> **Goal:** Manage the Navatech product inventory in Python, from a CSV file.  
+> **Goal:** Manage the product inventory in Python, from a CSV file.  
 > **What changes:** Before, raw data; after, a report per category, the products to reorder, and a JSON export.
 
-Reads `scripts/session-05/s5.3-inventory.csv` (the 12 storefront products + stock), **checks every row** (bad numbers, duplicates: skipped and listed, exit `1`).
+**Data:** `s5.3-inventory.csv`, one row per product: `sku, name, category, price, stock, reorder_level`.
 
-```bash
-python3 scripts/session-05/s5.3-inventory.py report        # units and stock value per category
-python3 scripts/session-05/s5.3-inventory.py low           # what to reorder
-python3 scripts/session-05/s5.3-inventory.py json -o /tmp/inventory.json
-```
+**Commands:** `report` (units and stock value per category) · `low` (stock at or under the reorder level, out of stock first) · `json -o file` (everything, for another tool).
 
-Sandbox output: 12 products, 589 units, **23,146 €** of stock; to reorder: Glide mouse (**out of stock**), Volt 20K, Nava Buds.
+**Why Python here:** Bash chains commands; as soon as you read data, compute, validate and export, Python is clearer and safer (`csv.DictReader`, a `dataclass`, type hints, `argparse` sub-commands, `json`).
 
-Python used: `argparse` sub-commands, `csv.DictReader`, `dataclass`, type hints, `json`, exit codes.
+**Built to survive bad data:** every row is checked (numbers, duplicates, negative values). Bad rows are skipped and listed on **stderr**, the good ones are still processed. Exit codes: `0` all valid, `1` rows skipped (a human should look), `2` file missing or unreadable.
+
+**Proof** ([S5.3-proofs.txt](S5.3-proofs.txt), 18 Nov): 12 products, 589 units, **23,146 €** of stock · to reorder: Glide mouse (out of stock), Volt 20K, Nava Buds · JSON export of 12 products · a CSV with 3 broken rows (text instead of a price, a duplicate SKU, a negative stock): report on the 2 good rows, 3 `SKIPPED` lines, exit `1` · missing file: `ERROR`, exit `2`.
 
 ## S5.4 Log analysis: `log_report.py`
 
